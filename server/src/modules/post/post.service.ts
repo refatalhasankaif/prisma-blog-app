@@ -1,4 +1,5 @@
 import { Post } from "../../../generated/prisma/client";
+import { PostWhereInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
 
 const createPost = async (data: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId'>, userId: string) => {
@@ -12,44 +13,53 @@ const createPost = async (data: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'a
     return result;
 }
 
-const getAllPost = async (payload: {
-    search: string | undefined,
-    tags: string[] | [],
-}) => {
-    const allPost = await prisma.post.findMany({
-        where: {
-            AND: [
-                {
-                    OR: [{
-                        title: {
-                            contains: payload.search as string,
-                            mode: "insensitive",
-                        }
-                    },
-                    {
-                        content: {
-                            contains: payload.search as string,
-                            mode: "insensitive",
+const getAllPost = async (
+  {
+    search,
+    tags,
+  }: {
+    search: string | undefined;
+    tags: string[] | [];
+  }
+) => {
+  const andConditions:PostWhereInput[] = [];
 
-                        }
-                    },
-                    {
-                        tags: {
-                            has: payload.search as string,
-
-                        }
-                    }
-                    ]
-                },
-                {
-                    tags: {
-                        hasEvery: payload.tags as string[]
-                    }
-                }]
-        }
+  if (search) {
+    andConditions.push({
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          content: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      ],
     });
-    return allPost
-}
+  }
+
+  if (tags && tags.length > 0) {
+    andConditions.push({
+      tags: {
+        hasEvery: tags as string[],
+      },
+    });
+  }
+
+  const result = await prisma.post.findMany({
+    where: {
+      AND: andConditions,
+    },
+  });
+
+  return result;
+};
+
 
 export const PostService = {
     createPost,
